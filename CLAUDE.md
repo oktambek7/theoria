@@ -13,6 +13,8 @@ pip install -r requirements-etl.txt          # superset; requirements.txt is web
 python -c "import config"                    # verify env is set up (core vars)
 python -c "import config; config.require_etl()"   # the pipeline's own required set
 pytest                                       # run all tests
+pip install -r requirements-ui.txt && python -m playwright install chromium   # once, for the opt-in layout tests
+pytest tests/ui --base-url http://127.0.0.1:8000   # responsive-layout tests against a running site (skipped without --base-url)
 python manage.py serve                        # auto-sync replica if stale, then runserver
 python django_app/manage.py warm_cache        # fill the Redis read cache (needs REDIS_URL; best effort)
 ```

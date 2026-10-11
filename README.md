@@ -483,6 +483,21 @@ exercised. Translation behaviour is tested at every hop (Bronze trimming, Silver
 replace-on-load loader, the data-quality check, and the rendered Russian, Uzbek and fallback
 pages).
 
+### Layout tests
+
+`tests/ui/` is a Playwright suite that loads the public pages at seven device viewports (360px phone
+to 2560px wide, plus a 960x540 TV) and asserts layout invariants: no horizontal scroll, header
+controls and icons neither overlap nor drift out of their buttons, 44px touch targets on touch
+devices, the mobile menu opens and closes, and the homepage wall and reel move (and stop under
+reduced motion). It also saves a full-page screenshot per page and viewport to `test-results/ui/`.
+It is opt-in and drives a **running server**, so a plain `pytest` never launches a browser:
+
+```bash
+pip install -r requirements-ui.txt && python -m playwright install chromium
+python django_app/manage.py runserver 127.0.0.1:8000        # in another terminal
+pytest tests/ui --base-url http://127.0.0.1:8000 [--browser webkit]
+```
+
 ## Project layout
 
 ```

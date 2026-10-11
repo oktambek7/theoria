@@ -1,0 +1,6 @@
+# Opt-in browser layout tests (tests/ui). Not needed by the pipeline, CI or Vercel.
+#   pip install -r requirements-ui.txt && python -m playwright install chromium
+-r requirements-etl.txt
+
+pytest-playwright==0.10.0
+playwright==1.62.0

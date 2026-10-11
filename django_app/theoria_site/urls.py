@@ -47,3 +47,13 @@ urlpatterns = [
 # can actually work rather than 404-ing or 500-ing on a public URL.
 if settings.ADMIN_ENABLED:
     urlpatterns.insert(0, path('admin/', admin.site.urls))
+
+# Under DEBUG a missing page gets Django's technical 404, never the site's own,
+# so the browser layout suite (tests/ui) could not see the page production
+# serves. This renders that same view at a fixed URL. Production does not route
+# it, so there the URL is just a real 404 -- the same page either way.
+if settings.DEBUG:
+    from django.http import Http404
+    from django.views.defaults import page_not_found
+
+    urlpatterns.insert(0, path('__404__/', lambda request: page_not_found(request, Http404())))
