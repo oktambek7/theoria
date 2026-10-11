@@ -70,6 +70,17 @@ def teardown_module(module):
     teardown_test_environment()
 
 
+def assert_title_search(filter_mock, column, term):
+    """The one `.filter()` a title search makes matches `column` in English or
+    any translated title (Russian), whatever language the request is in."""
+    filter_mock.assert_called_once()
+    (q,), kwargs = filter_mock.call_args
+    assert not kwargs
+    assert q.connector == "OR"
+    assert (f"{column}__icontains", term) in q.children
+    assert sum(isinstance(child, Exists) for child in q.children) == 1
+
+
 def _movie(movie_id=1, title="Test Movie"):
     return Movie(
         movie_id=movie_id,
@@ -194,7 +205,7 @@ def test_movie_list_search_and_sort():
         response = client.get("/movies/", {"q": "test", "sort": "rating"})
 
     assert response.status_code == 200
-    qs.filter.assert_called_once_with(title__icontains="test")
+    assert_title_search(qs.filter, "title", "test")
     # Annotated unconditionally now (Task 68) — always called once, whether
     # or not this request happens to sort by rating.
     qs.annotate.assert_called_once()
@@ -436,7 +447,7 @@ def test_series_list_search_and_sort():
         response = client.get("/tv/", {"q": "test", "sort": "rating"})
 
     assert response.status_code == 200
-    qs.filter.assert_called_once_with(name__icontains="test")
+    assert_title_search(qs.filter, "name", "test")
     qs.annotate.assert_called_once()
     assert response.context["q"] == "test"
     assert response.context["sort"] == "rating"
@@ -648,8 +659,8 @@ def test_cartoon_list_search_filters_movies_by_title_and_series_by_name():
         response = client.get("/cartoons/", {"q": "robot"})
 
     assert response.status_code == 200
-    movie_qs.filter.assert_called_once_with(title__icontains="robot")
-    series_qs.filter.assert_called_once_with(name__icontains="robot")
+    assert_title_search(movie_qs.filter, "title", "robot")
+    assert_title_search(series_qs.filter, "name", "robot")
     assert response.context["q"] == "robot"
 
 
@@ -2436,7 +2447,8 @@ def test_person_detail_filters_filmography_by_search():
     ]
 
     with patch("movies.views.get_object_or_404", return_value=person), \
-            _person_detail_mocks(credits, {1: Decimal("7.0"), 2: Decimal("8.0")}):
+            _person_detail_mocks(credits, {1: Decimal("7.0"), 2: Decimal("8.0")}), \
+            patch("movies.views.search_aliases", return_value={}):
         response = client.get("/people/test-person/", {"q": "alph"})
 
     assert response.status_code == 200
@@ -2994,7 +3006,7 @@ def test_studio_detail_filters_filmography_by_search(monkeypatch):
         response = client.get("/studios/warner-bros-pictures/", {"q": "test", "sort": "title"})
 
     assert response.status_code == 200
-    all_movies_qs.filter.assert_called_once_with(title__icontains="test")
+    assert_title_search(all_movies_qs.filter, "title", "test")
     # Stats are computed off the unfiltered aggregate calls above, unaffected
     # by the search term.
     assert response.context["film_count"] == 1
@@ -3358,8 +3370,8 @@ def test_search_suggest_lists_films_then_shows_as_json():
     assert show_row["url"] == "/tv/dark/"
     assert show_row["poster"] == ""
     assert show_row["rating"] is None
-    # English matches the plain title column (filter_by_title).
-    movie_mgr.using.return_value.filter.assert_called_once_with(title__icontains="in")
+    # English requests search the Russian title too (filter_by_title).
+    assert_title_search(movie_mgr.using.return_value.filter, "title", "in")
 
 
 def test_box_office_multiple_and_bar_widths():

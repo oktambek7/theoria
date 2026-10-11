@@ -4,8 +4,10 @@ Two kinds of translated text reach a page, and they take different routes:
 
 * Per-entity prose (a film's title/overview/tagline, a show's name/overview/
   tagline, a person's biography) is annotated onto the queryset by
-  `localize_movies()` / `localize_series()` / `localize_people()`, so a search
-  or a sort can run against the translated column in SQL.
+  `localize_movies()` / `localize_series()` / `localize_people()`, so a sort
+  can run against the translated column in SQL. A title *search* does not
+  depend on the reader's language: it always looks through English and
+  Russian (`SEARCH_LANGS`), see `filter_by_title()`.
 * The two fixed vocabularies (genre names, country names) are small enough to
   load whole: `genre_labels()` / `country_labels()` return {English name:
   translated name}, applied wherever a name is rendered — including the
@@ -18,18 +20,26 @@ back to the English column, and the model's `display_*` properties fall back
 to it when nothing was annotated at all.
 """
 
-from django.db.models import F, OuterRef, Q, Subquery
+from django.db.models import Exists, F, OuterRef, Q, Subquery
 from django.db.models.functions import Coalesce
 from django.utils.translation import get_language
 
 from core.datacache import cached
 
 from movies.models import (
-    CountryTranslation, GenreTranslation, MovieTranslation, PersonTranslation,
-    SeriesTranslation,
+    CountryTranslation, GenreTranslation, Movie, MovieTranslation,
+    PersonTranslation, Series, SeriesTranslation,
 )
 
 DEFAULT_LANG = "en"
+
+# Languages whose titles are searched on *every* request, whatever language the
+# reader has picked. English is always searched (it is the column on the title
+# itself) and Russian is added: a reader on the English site can type "Начало"
+# and one on the Russian site can type "Inception". Uzbek has no translated
+# titles (TMDB sends none), so it adds nothing and is left out. A 4th language
+# that ships real titles belongs here.
+SEARCH_LANGS = ("ru",)
 
 
 def current_lang():
@@ -164,17 +174,35 @@ def title_order(sort_key, english_order):
     return english_order
 
 
+def _search_langs():
+    """The translation languages a title search looks through: the fixed
+    SEARCH_LANGS plus the reader's own (a no-op today — every language that has
+    titles is already in SEARCH_LANGS — but it keeps a newly added language
+    searchable for its own readers without touching this list)."""
+    return {*SEARCH_LANGS, current_lang()}
+
+
 def filter_by_title(queryset, term):
     """Narrow a movie queryset to titles containing `term`.
 
-    On a translated request this matches the translated title *or* the
-    English one (a Russian reader may type "Начало" or "Inception" — the
-    English title is still printed on the page as the original), which needs
-    the queryset to have been through localize_movies().
+    Matches the English title or the title in any search language (Russian
+    always, plus the reader's own), whichever language the page is in — the
+    English title is printed on every page as the original, and a reader may
+    type either spelling. The translated side is an EXISTS against
+    movie_translation rather than the localize_movies() annotation, so the
+    queryset needn't have been through it (and English requests, which skip
+    that annotation, search Russian too).
     """
-    if is_translated_request():
-        return queryset.filter(Q(title_i18n__icontains=term) | Q(title__icontains=term))
-    return queryset.filter(title__icontains=term)
+    return queryset.filter(
+        Q(title__icontains=term)
+        | Exists(
+            MovieTranslation.objects.using("warehouse").filter(
+                movie_id=OuterRef("pk"),
+                lang__in=_search_langs(),
+                title__icontains=term,
+            )
+        )
+    )
 
 
 def series_name_order(sort_key, english_order):
@@ -189,12 +217,49 @@ def series_name_order(sort_key, english_order):
 
 
 def filter_by_series_name(queryset, term):
-    """Narrow a show queryset to names containing `term` — the translated name
-    or the English one, as filter_by_title() does for films. Needs the queryset
-    to have been through localize_series()."""
-    if is_translated_request():
-        return queryset.filter(Q(name_i18n__icontains=term) | Q(name__icontains=term))
-    return queryset.filter(name__icontains=term)
+    """Narrow a show queryset to names containing `term` — the English name or
+    one in any search language, as filter_by_title() does for films."""
+    return queryset.filter(
+        Q(name__icontains=term)
+        | Exists(
+            SeriesTranslation.objects.using("warehouse").filter(
+                series_id=OuterRef("pk"),
+                lang__in=_search_langs(),
+                name__icontains=term,
+            )
+        )
+    )
+
+
+def search_aliases(objects):
+    """{movie/show: [its titles in the search languages]} for loaded objects.
+
+    For the one search that runs in Python rather than SQL (a person's
+    filmography, already merged and in memory). `objects` is any mix of Movie
+    and Series; an object with no translated title is absent from the result.
+    Model equality is (concrete model, pk), so a film and a show sharing an id
+    stay distinct keys.
+    """
+    objects = list(objects)
+    langs = _search_langs()
+    aliases = {}
+    for model, translation, fk, column in (
+        (Movie, MovieTranslation, "movie_id", "title"),
+        (Series, SeriesTranslation, "series_id", "name"),
+    ):
+        by_id = {o.pk: o for o in objects if isinstance(o, model)}
+        if not by_id:
+            continue
+        rows = (
+            translation.objects.using("warehouse")
+            .filter(**{f"{fk}__in": list(by_id), "lang__in": langs})
+            .exclude(**{f"{column}__isnull": True})
+            .exclude(**{column: ""})
+            .values_list(fk, column)
+        )
+        for obj_id, text in rows:
+            aliases.setdefault(by_id[obj_id], []).append(text)
+    return aliases
 
 
 def genre_labels():

@@ -23,7 +23,9 @@ from django.urls import reverse
 from django.utils import translation
 from django.utils.translation import gettext, ngettext
 
-from movies.models import Genre, Movie, MovieRating, Person, Series
+from movies.models import (
+    Genre, Movie, MovieRating, MovieTranslation, Person, Series, SeriesTranslation,
+)
 
 LOCALE_DIR = Path(__file__).resolve().parent.parent / "django_app" / "locale"
 COOKIE = "django_language"
@@ -436,21 +438,63 @@ def test_title_sort_reads_the_translated_column_only_when_translated():
         assert i18n.title_order("rating", english) is english
 
 
-def test_search_on_english_is_the_plain_title_filter():
-    queryset = MagicMock()
+def test_search_matches_english_or_russian_title_whatever_the_language():
+    """Search is global across English and Russian (Uzbek has no titles): an
+    English-language reader finds a film by its Russian title and vice versa."""
+    for lang in ("en", "ru", "uz"):
+        with translation.override(lang):
+            sql, params = _sql(
+                i18n.filter_by_title(Movie.objects.using("warehouse"), "Начало")
+            )
+        assert "movie_translation" in sql, lang
+        assert "ru" in params, lang
+        assert " OR " in sql and sql.count("LIKE") == 2, lang
+
+
+def test_search_does_not_need_the_localized_annotation():
+    """The translated side is an EXISTS, so an English request (which skips
+    localize_movies) can still search Russian titles."""
     with translation.override("en"):
-        i18n.filter_by_title(queryset, "fight")
-    queryset.filter.assert_called_once_with(title__icontains="fight")
+        queryset = Movie.objects.using("warehouse")
+        sql, _ = _sql(i18n.filter_by_title(queryset, "Начало"))
+    assert "title_i18n" not in sql and "EXISTS" in sql
 
 
-def test_search_on_ru_matches_translated_or_english_title():
-    queryset = MagicMock()
-    with translation.override("ru"):
-        i18n.filter_by_title(queryset, "Начало")
-    (q,), _ = queryset.filter.call_args
-    text = str(q)
-    assert "title_i18n__icontains" in text and "title__icontains" in text
-    assert "OR" in text
+def test_search_aliases_returns_search_language_titles_per_object():
+    movie, show, plain = _movie(movie_id=7), _series(), _movie(movie_id=8)
+    show.series_id = 7                       # same id as the film: stay distinct
+    with patch.object(MovieTranslation, "objects", new=MagicMock()) as movies_mgr, \
+            patch.object(SeriesTranslation, "objects", new=MagicMock()) as series_mgr:
+        movies_mgr.using.return_value.filter.return_value.exclude.return_value \
+            .exclude.return_value.values_list.return_value = [(7, "Начало")]
+        series_mgr.using.return_value.filter.return_value.exclude.return_value \
+            .exclude.return_value.values_list.return_value = [(7, "Тьма")]
+        with translation.override("en"):
+            aliases = i18n.search_aliases([movie, show, plain])
+    assert aliases == {movie: ["Начало"], show: ["Тьма"]}
+    assert plain not in aliases
+
+
+def test_filmography_search_finds_a_russian_title_from_the_english_page():
+    from tests.test_django_views import Credit, _person, _person_detail_mocks
+
+    person = _person()
+    movies = [_movie(movie_id=1, title="Inception"), _movie(movie_id=2, title="Memento")]
+    credits = [
+        Credit(movie=m, person=person, department="Acting", job="Actor",
+               character_name="Role", ordering=0)
+        for m in movies
+    ]
+    with patch("movies.views.get_object_or_404", return_value=person), \
+            _person_detail_mocks(credits, {1: Decimal("8.8"), 2: Decimal("8.4")}), \
+            patch("movies.views.search_aliases",
+                  return_value={movies[0]: ["Начало"]}) as aliases:
+        response = _get("en", "/people/test-person/?q=начал")
+
+    assert response.status_code == 200
+    page = list(response.context["page_obj"])
+    assert [row["title_obj"].title for row in page] == ["Inception"]
+    aliases.assert_called_once()
 
 
 def test_russian_title_search_finds_the_film_on_the_list_page():

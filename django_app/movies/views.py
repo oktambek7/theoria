@@ -28,8 +28,8 @@ from movies.models import (
 from movies.i18n import (
     attach_movie_titles, attach_series_titles, country_labels, filter_by_series_name,
     filter_by_title, genre_labels, is_translated_request, localize_genres,
-    localize_movies, localize_people, localize_series, series_name_order,
-    title_order,
+    localize_movies, localize_people, localize_series, search_aliases,
+    series_name_order, title_order,
 )
 from movies.templatetags.tmdb_images import tmdb_image
 from movies.vocab import display_department, display_job
@@ -1607,15 +1607,19 @@ def person_detail(request, person_slug):
     rows = filmography
     if q:
         needle = q.lower()
+        # Searchable in English and Russian whatever the page's language
+        # (filter_by_title's rule, applied here in Python): the displayed
+        # title, the English one, and any Russian one.
+        aliases = search_aliases(r["title_obj"] for r in rows)
         rows = [
             r for r in rows
             if needle in _filmography_title(r["title_obj"]).lower()
-            # A title's English spelling stays searchable on a translated page.
             or needle in (
                 getattr(r["title_obj"], "title", None)
                 or getattr(r["title_obj"], "name", None)
                 or ""
             ).lower()
+            or any(needle in t.lower() for t in aliases.get(r["title_obj"], ()))
         ]
     rows = _sorted_filmography(rows, sort)
 

@@ -28,6 +28,7 @@ from etl.warehouse_loader.load_dimensions import load_series_translation
 # which the `movies` imports below depend on.
 from tests.test_django_views import (  # noqa: F401  (also runs django.setup())
     client, setup_module, teardown_module, _series, _series_detail_mocks,
+    assert_title_search,
 )
 from tests.test_etl import _make_s3_mock_with_files, _series_detail
 from tests.test_i18n import _get, _sql
@@ -216,6 +217,17 @@ def test_series_name_sort_and_search_follow_the_language():
         assert sql.count("LIKE") >= 2                       # translated OR English name
 
 
+def test_series_search_reaches_russian_names_from_every_interface_language():
+    for lang in ("en", "ru", "uz"):
+        with translation.override(lang):
+            sql, params = _sql(
+                i18n.filter_by_series_name(Series.objects.using("warehouse"), "Тяжкие")
+            )
+        assert "series_translation" in sql, lang
+        assert "ru" in params, lang
+        assert sql.count("LIKE") == 2, lang                 # English OR Russian
+
+
 # --- the show page -----------------------------------------------------------
 
 def _translated_show(**overrides):
@@ -298,7 +310,7 @@ def test_english_series_search_is_the_plain_name_filter():
 
         _get("", "/tv/?q=bad")
 
-    qs.filter.assert_called_once_with(name__icontains="bad")
+    assert_title_search(qs.filter, "name", "bad")
 
 
 def test_cartoon_card_shows_the_translated_show_name():
