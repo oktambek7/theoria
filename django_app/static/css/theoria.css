@@ -463,6 +463,25 @@ main.container {
               border-color var(--dur-slow) var(--ease);
 }
 
+/* Set by cinema.js while the reader scrolls down: the whole header slides up
+   out of view and returns on the first scroll up. The extra 48px clears the
+   bar's own drop shadow, which would otherwise leave a smudge at the top edge.
+   `transform` only exists in this state (and while it eases back), so the
+   header never becomes a containing block for fixed descendants at rest. */
+.site-header {
+  transition: transform var(--dur-slow) var(--ease);
+}
+
+.site-header.is-hidden {
+  transform: translateY(calc(-100% - 48px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header {
+    transition: none;
+  }
+}
+
 /* Set by cinema.js once the page has scrolled: the bar firms up so links
    stay legible over busy posters. */
 .site-header.is-scrolled .nav {

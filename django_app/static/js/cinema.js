@@ -4,7 +4,8 @@
 // links, the decade chart is a table, and the header search is a plain form
 // that submits to the Browse page.
 //
-//   1. initHeaderScroll() — firms up the floating header once the page scrolls.
+//   1. initHeaderScroll() — firms up the floating header once the page scrolls,
+//                           hides it on the way down, brings it back on the way up.
 //   2. Room light         — samples the colour of the film on screen into
 //                           --glow, which tints .ambient and the score card.
 //   3. initReel()         — the home "Explore" reel.
@@ -22,19 +23,78 @@
 
   /* --- 1. Header ------------------------------------------------------------- */
 
+  /* Two states ride on the scroll position. `is-scrolled` firms the bar up
+     once the page has moved at all. `is-hidden` slides it out of view while
+     the reader scrolls down and brings it straight back on any scroll up, so
+     it costs no reading space but is one flick away. It never hides near the
+     top, and it stays put while something inside it is in use: the mobile
+     menu or an account/language popover is open (aria-expanded), or a field
+     or a keyboard-focused control holds focus (:focus-visible, so a mouse
+     click on the theme toggle doesn't pin it forever). */
+
   function initHeaderScroll() {
     var header = document.querySelector(".site-header");
     if (!header) return;
-    var on = false;
-    function update() {
-      var next = window.scrollY > 40;
-      if (next !== on) {
-        on = next;
-        header.classList.toggle("is-scrolled", on);
-      }
+    var HIDE_AFTER = 120; // px from the top before hiding is allowed
+    var DELTA = 6; // px of travel that counts as a deliberate direction
+    var scrolled = false;
+    var hidden = false;
+    var lastY = Math.max(0, window.scrollY);
+    var queued = false;
+
+    function setHidden(next) {
+      if (next === hidden) return;
+      hidden = next;
+      header.classList.toggle("is-hidden", hidden);
     }
+
+    function pinned() {
+      return !!header.querySelector('[aria-expanded="true"], :focus-visible');
+    }
+
+    function update() {
+      queued = false;
+      // Clamp so iOS rubber-banding past either end reads as no movement
+      // rather than a reversal that would flash the bar.
+      var max = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight
+      );
+      var y = Math.min(Math.max(0, window.scrollY), max);
+
+      var isScrolled = y > 40;
+      if (isScrolled !== scrolled) {
+        scrolled = isScrolled;
+        header.classList.toggle("is-scrolled", scrolled);
+      }
+
+      if (y <= HIDE_AFTER) {
+        setHidden(false);
+        lastY = y;
+        return;
+      }
+      var dy = y - lastY;
+      if (Math.abs(dy) < DELTA) return;
+      lastY = y;
+      if (dy < 0) setHidden(false);
+      else if (!pinned()) setHidden(true);
+    }
+
+    function request() {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(update);
+    }
+
     update();
-    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("scroll", request, { passive: true });
+    // Tabbing into a hidden bar brings it back rather than leaving focus
+    // on something off screen.
+    header.addEventListener("focusin", function () {
+      setHidden(false);
+    });
+    // A restored back/forward-cache page can come back mid-scroll.
+    window.addEventListener("pageshow", update);
   }
 
   /* --- 2. Room light ------------------------------------------------------------
