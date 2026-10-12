@@ -34,15 +34,21 @@
                 {% else %}
                 <div class="film-poster placeholder" aria-hidden="true">◻</div>
                 {% endif %}
+                {% comment %} Year · length · language, as a caption under the poster
+                   and above the collection buttons. The separators are drawn by
+                   CSS, so a film missing any of the three never leaves a stray
+                   dot. {% endcomment %}
+                {% if movie.release_date or movie.runtime or movie.original_language %}
+                <p class="film-plate-meta">
+                    {% if movie.release_date %}<span class="mono">{{ movie.release_date|date:"Y" }}</span>{% endif %}
+                    {% if movie.runtime %}<span>{% blocktranslate trimmed with n=movie.runtime %}{{ n }} min{% endblocktranslate %}</span>{% endif %}
+                    {% if movie.original_language %}<span>{{ movie.original_language|upper }}</span>{% endif %}
+                </p>
+                {% endif %}
                 {% include "movies/_collection_actions.html" with content_type="movie" content_id=movie.movie_id collection_flags=collection_flags request=request csrf_token=csrf_token only %}
             </div>
 
             <div class="film-hero__copy film-stagger">
-                <p class="eyebrow">
-                    {% if movie.release_date %}<span class="mono">{{ movie.release_date|date:"Y" }}</span>{% endif %}
-                    {% if movie.runtime %}<span>· {% blocktranslate trimmed with n=movie.runtime %}{{ n }} min{% endblocktranslate %}</span>{% endif %}
-                    {% if movie.original_language %}<span>· {{ movie.original_language|upper }}</span>{% endif %}
-                </p>
                 <h1 class="film-title">{{ movie.display_title }}</h1>
                 {% if movie.original_title and movie.original_title != movie.display_title %}
                 <p class="specimen-original-title mono">{% blocktranslate trimmed with title=movie.original_title %}originally “{{ title }}”{% endblocktranslate %}</p>
