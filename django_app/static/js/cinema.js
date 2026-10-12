@@ -596,14 +596,14 @@
   }
 
   /* --- 8. Poster morph ---------------------------------------------------------------------------
-     The film page's poster carries view-transition-name: film-poster
+     The film and show pages' poster carries view-transition-name: film-poster
      (film.css). Naming the clicked poster the same on the way out lets a
      cross-document view transition morph one into the other. Only one element
      per page may hold a name, so the current page's own film poster, if any,
      gives it up first. Browsers without cross-document view transitions just
      navigate. */
 
-  var FILM_PATH = /^\/movies\/[^/]+\/$/;
+  var FILM_PATH = /^\/(?:movies|tv)\/[^/]+\/$/;
 
   function initPosterMorph() {
     if (reduce || !("PageRevealEvent" in window)) return;

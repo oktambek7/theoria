@@ -1091,6 +1091,18 @@ def series_detail(request, series_slug):
     )
     trailer = _pick_trailer(videos)
 
+    # "Ranked #N of M shows" beside the score ring, as on the film page: one
+    # aggregate over fact_series_rating's IMDb rows. Shows tied on the rating
+    # share a rank, so N counts only the shows rated strictly higher.
+    rating_rank = rated_total = None
+    if series_rating and series_rating.rating is not None:
+        ranks = SeriesRating.objects.using("warehouse").filter(source="imdb").aggregate(
+            total=Count("series_id"),
+            above=Count("series_id", filter=Q(rating__gt=series_rating.rating)),
+        )
+        rating_rank = int(ranks["above"]) + 1
+        rated_total = int(ranks["total"])
+
     context = {
         "series": series,
         "genres": genres,
@@ -1105,6 +1117,8 @@ def series_detail(request, series_slug):
         "countries": countries,
         "languages": languages,
         "series_rating": series_rating,
+        "rating_rank": rating_rank,
+        "rated_total": rated_total,
         # Lazy: the Season/Episode queries run only if the episodes fragment in
         # series_detail.html is a cache miss (Task 118) -- on a hit nothing
         # reads this, so the warehouse is never asked.

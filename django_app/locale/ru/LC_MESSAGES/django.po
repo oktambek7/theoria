@@ -2125,6 +2125,10 @@ msgstr "Рейтинг IMDb"
 msgid "Ranked #%(rank)s of %(total)s rated films on Theoria"
 msgstr "№%(rank)s из %(total)s оценённых фильмов на Theoria"
 
+#, python-format
+msgid "Ranked #%(rank)s of %(total)s rated shows on Theoria"
+msgstr "№%(rank)s из %(total)s оценённых сериалов на Theoria"
+
 msgid "Box office"
 msgstr "Кассовые сборы"
 

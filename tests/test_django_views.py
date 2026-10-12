@@ -1158,9 +1158,11 @@ def _series_video(video_id, *, type="Trailer", official=True, name=None, key=Non
     )
 
 
-def test_series_detail_trailer_takes_the_backdrop_slot():
-    """Task 90: dim_series_video reuses movie_detail()'s _pick_trailer()
-    ladder and _video_embed.html unchanged."""
+def test_series_detail_trailer_plays_below_the_backdrop_hero():
+    """Task 90, restated for the screening layout: the backdrop fills the
+    hero, so a trailer no longer displaces it -- both render, trailer below.
+    dim_series_video still reuses movie_detail()'s _pick_trailer() ladder and
+    _video_embed.html unchanged."""
     show = _series()
     show.backdrop_path = "/bd.jpg"
     trailer = _series_video("t1", key="TRAILERKEY")
@@ -1173,25 +1175,34 @@ def test_series_detail_trailer_takes_the_backdrop_slot():
     body = response.content.decode()
     assert 'class="video-strip"' in body
     assert "img.youtube.com/vi/TRAILERKEY/hqdefault.jpg" in body
+    assert 'class="film-hero__backdrop"' in body
+    assert body.index('class="film-hero__backdrop"') < body.index('class="video-strip"')
     assert 'class="backdrop-strip"' not in body
 
 
-def test_series_detail_keeps_backdrop_when_there_is_no_trailer():
+def test_series_detail_backdrop_fills_the_hero_when_there_is_no_trailer():
     show = _series()
     show.backdrop_path = "/bd.jpg"
+    show.poster_path = "/p.jpg"
 
     with _series_detail_mocks(show, videos=[]):
         response = client.get("/tv/test-show/")
 
     assert response.context["trailer"] is None
     body = response.content.decode()
-    assert 'class="backdrop-strip"' in body
+    assert 'class="film-hero__backdrop"' in body
+    assert "/w1280/bd.jpg" in body
     assert 'class="video-strip"' not in body
+    assert 'class="backdrop-strip"' not in body
+    # The backdrop is the colour source, so the poster is not.
+    poster_tag = body[body.index('<img class="film-poster"'):].split(">", 1)[0]
+    assert "data-glow-source" not in poster_tag
 
 
 def test_series_detail_no_video_blocks_when_show_has_no_videos():
     show = _series()
     show.backdrop_path = None
+    show.poster_path = "/p.jpg"
 
     with _series_detail_mocks(show, videos=[]):
         response = client.get("/tv/test-show/")
@@ -1200,7 +1211,40 @@ def test_series_detail_no_video_blocks_when_show_has_no_videos():
     assert response.context["trailer"] is None
     body = response.content.decode()
     assert 'class="video-strip"' not in body
+    assert 'class="film-hero__backdrop"' not in body
     assert 'class="backdrop-strip"' not in body
+    # Without a backdrop the poster becomes the colour source instead.
+    poster_tag = body[body.index('<img class="film-poster"'):].split(">", 1)[0]
+    assert "data-glow-source" in poster_tag
+
+
+def test_series_detail_ranks_the_show_among_rated_shows():
+    show = _series()
+
+    with _series_detail_mocks(show) as mocks:
+        rated = mocks["rating"].using.return_value.filter.return_value
+        rated.first.return_value = SeriesRating(
+            series=show, source="imdb", rating=Decimal("9.1"), vote_count=10,
+        )
+        rated.aggregate.return_value = {"total": 734, "above": 2}
+        response = client.get("/tv/test-show/")
+
+    assert response.context["rating_rank"] == 3
+    assert response.context["rated_total"] == 734
+    body = response.content.decode()
+    assert "Ranked #3 of 734 rated shows on Theoria" in body
+    assert 'stroke-dasharray="91 100"' in body
+
+
+def test_series_detail_has_no_rank_without_a_rating():
+    show = _series()
+
+    with _series_detail_mocks(show):
+        response = client.get("/tv/test-show/")
+
+    assert response.context["rating_rank"] is None
+    assert response.context["rated_total"] is None
+    assert 'class="score"' not in response.content.decode()
 
 
 # ---------------------------------------------------------------------------
