@@ -112,7 +112,7 @@ def test_home_returns_200_with_expected_context():
     ) as rating_mgr:
         using = movie_mgr.using.return_value
         using.count.return_value = 1217
-        # top_rated and newest both now annotate(imdb_rating=...).order_by(...)[:12]
+        # top_rated ([:10]) and newest ([:12]) both annotate(imdb_rating=...).order_by(...)
         # (Task 68), so both hit this same chain regardless of which order_by
         # expression each actually orders by.
         using.annotate.return_value.order_by.return_value.__getitem__.return_value = [movie]

@@ -1,17 +1,17 @@
 // Theoria — the cinema layer. Loaded on every page from base.html, after
 // theoria.js. Everything here is progressive enhancement: with JS off the
 // home reel shows its first film, the poster wall and rails are plain rows of
-// links, the decade chart is a table, and the header search button is a link
-// to the Movies index.
+// links, the decade chart is a table, and the header search is a plain form
+// that submits to the Browse page.
 //
 //   1. initHeaderScroll() — firms up the floating header once the page scrolls.
 //   2. Room light         — samples the colour of the film on screen into
 //                           --glow, which tints .ambient and the score card.
-//   3. initReel()         — the home "Now showing" reel.
+//   3. initReel()         — the home "Explore" reel.
 //   4. initTilt()         — posters tilt toward the pointer and catch a light.
 //   5. initRails()        — drag-to-scroll strips with arrow buttons.
 //   6. initDecades()      — draws the home decade chart from its table.
-//   7. initPalette()      — the Ctrl+K search palette.
+//   7. initHeaderSearch() — the header search field and its results dropdown.
 //   8. initPosterMorph()  — a clicked poster morphs into the film page's.
 (function () {
   "use strict";
@@ -362,53 +362,71 @@
     io.observe(svg);
   }
 
-  /* --- 7. Search palette ---------------------------------------------------------------------- */
+  /* --- 7. Header search ------------------------------------------------------------------------
+     The field lives in the header bar and the matches list in a dropdown
+     right under it -- no overlay. Where the bar is too tight for the field
+     (CSS, up to 1240px) a magnifier button stands in and opens the same
+     field as a row under the bar. Enter follows an option only once the
+     reader has arrowed to it; otherwise the form submits to the Browse page. */
 
-  function initPalette() {
-    var palette = document.querySelector("[data-search-palette]");
-    if (!palette) return;
-    var input = palette.querySelector("input");
-    var list = palette.querySelector(".palette__list");
-    var endpoint = palette.getAttribute("data-endpoint");
+  function initHeaderSearch() {
+    var form = document.querySelector("[data-header-search]");
+    if (!form) return;
+    var input = form.querySelector("input");
+    var list = form.querySelector(".header-search__list");
+    var toggle = document.querySelector("[data-search-toggle]");
+    var endpoint = form.getAttribute("data-endpoint");
     var kindLabel = {
-      movie: palette.getAttribute("data-label-movie"),
-      series: palette.getAttribute("data-label-series"),
+      movie: form.getAttribute("data-label-movie"),
+      series: form.getAttribute("data-label-series"),
     };
     var items = [];
-    var selected = 0;
+    var selected = -1;
     var pending = null;
     var debounce = null;
-    var lastFocus = null;
+
+    function setOpen(open) {
+      list.hidden = !open;
+      input.setAttribute("aria-expanded", open ? "true" : "false");
+      if (!open) input.removeAttribute("aria-activedescendant");
+    }
 
     function note(text) {
       list.innerHTML = "";
       var p = document.createElement("p");
-      p.className = "palette__note";
+      p.className = "header-search__note";
       p.textContent = text;
       list.appendChild(p);
       items = [];
+      selected = -1;
+      setOpen(true);
     }
 
     function select(i) {
       selected = i;
       items.forEach(function (el, k) {
         el.setAttribute("aria-selected", k === i ? "true" : "false");
-        if (k === i) el.scrollIntoView({ block: "nearest" });
+        if (k === i) {
+          el.scrollIntoView({ block: "nearest" });
+          input.setAttribute("aria-activedescendant", el.id);
+        }
       });
+      if (i < 0) input.removeAttribute("aria-activedescendant");
     }
 
     function render(results) {
       if (!results.length) {
-        note(palette.getAttribute("data-empty"));
+        note(form.getAttribute("data-empty"));
         return;
       }
       list.innerHTML = "";
       items = results.map(function (r, i) {
         var a = document.createElement("a");
-        a.className = "palette__item";
+        a.className = "header-search__item";
         a.href = r.url;
         a.setAttribute("role", "option");
-        a.id = "search-palette-opt-" + i;
+        a.setAttribute("aria-selected", "false");
+        a.id = "header-search-opt-" + i;
         var img;
         if (r.poster) {
           img = document.createElement("img");
@@ -416,7 +434,7 @@
           img.alt = "";
         } else {
           img = document.createElement("span");
-          img.className = "palette__ph";
+          img.className = "header-search__ph";
         }
         var text = document.createElement("span");
         var title = document.createElement("b");
@@ -434,14 +452,19 @@
         list.appendChild(a);
         return a;
       });
-      select(0);
+      selected = -1;
+      setOpen(true);
     }
 
     function search() {
       var q = input.value.trim();
       if (pending) pending.abort();
+      if (!q) {
+        setOpen(false);
+        return;
+      }
       if (q.length < 2) {
-        note(palette.getAttribute("data-hint"));
+        note(form.getAttribute("data-hint"));
         return;
       }
       pending = window.AbortController ? new AbortController() : null;
@@ -453,61 +476,62 @@
         .then(function (data) { render(data.results || []); })
         .catch(function (err) {
           if (err && err.name === "AbortError") return;
-          note(palette.getAttribute("data-empty"));
+          note(form.getAttribute("data-empty"));
         });
     }
 
-    function open() {
-      lastFocus = document.activeElement;
-      palette.hidden = false;
-      input.value = "";
-      note(palette.getAttribute("data-hint"));
-      input.focus();
+    function closeRow() {
+      if (!toggle) return;
+      form.classList.remove("is-open");
+      toggle.setAttribute("aria-expanded", "false");
     }
 
-    function close() {
-      palette.hidden = true;
-      if (pending) pending.abort();
-      if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
-    }
-
-    document.querySelectorAll("[data-search-open]").forEach(function (btn) {
-      btn.addEventListener("click", function (e) {
-        e.preventDefault();
-        open();
+    if (toggle) {
+      toggle.addEventListener("click", function () {
+        var open = !form.classList.contains("is-open");
+        form.classList.toggle("is-open", open);
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) input.focus();
+        else setOpen(false);
       });
-    });
+    }
 
     input.addEventListener("input", function () {
       clearTimeout(debounce);
       debounce = setTimeout(search, 160);
     });
 
-    palette.addEventListener("click", function (e) {
-      if (e.target === palette) close();
+    // Back to a field that already holds a search: show its matches again.
+    input.addEventListener("focus", function () {
+      if (input.value.trim() && list.children.length) setOpen(true);
     });
 
-    document.addEventListener("keydown", function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        if (palette.hidden) open();
-        else close();
-        return;
-      }
-      if (palette.hidden) return;
+    input.addEventListener("keydown", function (e) {
       if (e.key === "Escape") {
-        e.preventDefault();
-        close();
+        if (!list.hidden) {
+          e.preventDefault();
+          setOpen(false);
+        } else if (form.classList.contains("is-open")) {
+          e.preventDefault();
+          closeRow();
+          if (toggle) toggle.focus();
+        }
       } else if (e.key === "ArrowDown" && items.length) {
         e.preventDefault();
-        select((selected + 1) % items.length);
+        if (list.hidden) setOpen(true);
+        select(selected + 1 >= items.length ? 0 : selected + 1);
       } else if (e.key === "ArrowUp" && items.length) {
         e.preventDefault();
-        select((selected - 1 + items.length) % items.length);
-      } else if (e.key === "Enter" && items[selected]) {
+        select(selected <= 0 ? items.length - 1 : selected - 1);
+      } else if (e.key === "Enter" && !list.hidden && items[selected]) {
         e.preventDefault();
         items[selected].click();
       }
+    });
+
+    // Clicking anywhere else puts the list away; the field keeps its text.
+    document.addEventListener("click", function (e) {
+      if (!form.contains(e.target) && !(toggle && toggle.contains(e.target))) setOpen(false);
     });
   }
 
@@ -554,7 +578,7 @@
     initTilt();
     initRails();
     initDecades();
-    initPalette();
+    initHeaderSearch();
     initPosterMorph();
   }
 

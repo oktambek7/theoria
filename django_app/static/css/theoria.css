@@ -4120,96 +4120,92 @@ main,
 
 .round-btn svg { width: 16px; height: 16px; }
 
-/* --- Header search ----------------------------------------------------------- */
+/* --- Header search -----------------------------------------------------------
+   Wide: the field sits in the bar and its matches drop down beneath it.
+   Narrow (<= 1240px, where the bar has no room for a field): the magnifier
+   button stands in and opens the field as a row under the bar. Without JS
+   there is no button and the field simply stays in the bar. */
 
 .search-btn {
-  display: inline-flex;
+  display: none;
   align-items: center;
-  gap: var(--space-3);
-  padding: 8px 9px 8px 14px;
+  justify-content: center;
+  padding: 9px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--rule-strong);
+  background: none;
   color: var(--ink-muted);
-  font-size: var(--text-xs);
+  cursor: pointer;
   transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
-.search-btn:hover {
+.search-btn:hover,
+.search-btn[aria-expanded="true"] {
   color: var(--ink);
   border-color: var(--ink-faint);
-  text-decoration: none;
 }
 
 .search-btn svg { width: 15px; height: 15px; flex: none; }
 
-.search-btn__kbd,
-.palette__field kbd {
-  font: 500 var(--text-3xs) / 1 var(--font-mono);
-  padding: 4px 6px;
-  border-radius: 6px;
-  background: var(--sheet-2);
-  color: var(--ink-muted);
+/* The bar's width is fixed and a longer language (Russian) leaves little of
+   it spare, so the field takes whatever room is left, between a floor that
+   still fits "Search" and a ceiling. Its basis is 0 so the row's wrapping
+   sizes it at the floor and only then lets it grow. */
+.header-search {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 96px;
+  max-width: 232px;
 }
 
-/* The palette: a centred sheet over a dimmed page. */
-.palette {
-  position: fixed;
-  inset: 0;
-  z-index: 250;
-  display: grid;
-  place-items: start center;
-  padding: 14vh var(--space-5) 0;
-  background: rgb(0 0 0 / 0.55);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-}
-
-.palette[hidden] { display: none; }
-
-.palette__box {
-  width: min(620px, 100%);
-  border-radius: 18px;
-  background: var(--sheet);
-  border: 1px solid var(--rule-strong);
-  box-shadow: 0 40px 100px -20px rgb(0 0 0 / 0.7);
-  overflow: hidden;
-  animation: palette-pop 0.35s var(--ease-out);
-}
-
-@keyframes palette-pop {
-  from { transform: translateY(-10px) scale(0.98); opacity: 0.3; }
-}
-
-.palette__field {
+.header-search__field {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: 0 var(--space-5);
-  border-bottom: var(--hairline);
-  color: var(--ink-faint);
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--rule-strong);
+  color: var(--ink-muted);
+  cursor: text;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
-.palette__field svg { width: 18px; height: 18px; flex: none; }
+.header-search__field:hover { border-color: var(--ink-faint); }
 
-.palette__field input[type="text"] {
+.header-search__field:focus-within {
+  color: var(--ink);
+  border-color: var(--lime-mark);
+}
+
+.header-search__field svg { width: 15px; height: 15px; flex: none; }
+
+.header-search__field input[type="search"] {
   flex: 1;
   min-width: 0;
-  padding: 20px 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font: 400 var(--text-md) var(--font-body);
-  outline: none;
-  box-shadow: none;
+  padding: 8px 0;
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
 }
 
-.palette__list {
-  max-height: 52vh;
+.header-search__list {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 30;
+  width: min(420px, calc(100vw - 2 * var(--space-5)));
+  max-height: min(60vh, 460px);
   overflow-y: auto;
-  padding: var(--space-3);
+  padding: var(--space-2);
+  background: var(--paper);
+  border: var(--hairline);
+  border-radius: 0.875rem;
+  box-shadow: var(--shadow-card);
 }
 
-.palette__item {
+.header-search__list[hidden] { display: none; }
+
+.header-search__item {
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) auto;
   gap: var(--space-5);
@@ -4219,14 +4215,14 @@ main,
   color: var(--ink);
 }
 
-.palette__item:hover,
-.palette__item[aria-selected="true"] {
+.header-search__item:hover,
+.header-search__item[aria-selected="true"] {
   background: var(--sheet-2);
   text-decoration: none;
 }
 
-.palette__item img,
-.palette__item .palette__ph {
+.header-search__item img,
+.header-search__item .header-search__ph {
   width: 36px;
   aspect-ratio: 2 / 3;
   object-fit: cover;
@@ -4234,7 +4230,7 @@ main,
   background: var(--sheet-2);
 }
 
-.palette__item b {
+.header-search__item b {
   display: block;
   font-weight: 600;
   overflow: hidden;
@@ -4242,14 +4238,14 @@ main,
   white-space: nowrap;
 }
 
-.palette__item small {
+.header-search__item small {
   color: var(--ink-faint);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
 }
 
-.palette__note {
-  padding: var(--space-6);
+.header-search__note {
+  padding: var(--space-5) var(--space-4);
   color: var(--ink-faint);
   text-align: center;
   font-size: var(--text-sm);
@@ -4305,9 +4301,28 @@ main,
 }
 
 @media (max-width: 1240px) {
-  .search-btn__label,
-  .search-btn__kbd { display: none; }
-  .search-btn { padding: 9px; }
+  html.has-js .search-btn { display: inline-flex; }
+
+  /* The field becomes a full-width row under the bar, shown on demand. */
+  html.has-js .header-search {
+    display: none;
+    order: 9;
+    flex: none;
+    width: 100%;
+    max-width: none;
+  }
+
+  html.has-js .header-search.is-open { display: block; }
+
+  html.has-js .header-search__field {
+    padding-inline: var(--space-5);
+    gap: var(--space-3);
+  }
+
+  html.has-js .header-search__list {
+    left: 0;
+    width: auto;
+  }
 }
 
 /* Below the hamburger breakpoint the search button joins the header row's
@@ -4372,7 +4387,8 @@ main,
 @media (pointer: coarse) {
   input[type="text"],
   input[type="search"],
-  .field select {
+  .field select,
+  .header-search__field input[type="search"] {
     font-size: 16px;
   }
 }

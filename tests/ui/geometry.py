@@ -65,6 +65,7 @@ document.querySelectorAll('.site-header .signin-btn').forEach((e, i) => add('sig
 const toggle = document.querySelector('.site-header .nav-toggle');
 add('nav-toggle', toggle);
 add('search-btn', document.querySelector('.site-header .search-btn'));
+add('search-field', document.querySelector('.site-header .header-search__field'));
 add('lang-menu', document.querySelector('.site-header .lang-menu__trigger'));
 add('theme-toggle', document.querySelector('.site-header .theme-toggle'));
 if (!vis(toggle)) {

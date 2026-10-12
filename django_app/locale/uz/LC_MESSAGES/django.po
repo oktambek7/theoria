@@ -1044,10 +1044,6 @@ msgstr "Tahlilni koʻrish →"
 msgid "Highest rated"
 msgstr "Eng yuqori baholanganlar"
 
-#: movies/templates/movies/home.html:69
-msgid "top 12"
-msgstr "top-12"
-
 #: movies/templates/movies/home.html:82
 msgid "See what's new"
 msgstr "Yangiliklar"
@@ -2008,8 +2004,8 @@ msgstr "Menga emas"
 msgid "{minutes} min"
 msgstr "{minutes} daq"
 
-msgid "Now showing"
-msgstr "Hozir ekranda"
+msgid "Explore"
+msgstr "Kashf eting"
 
 #, python-format
 msgid "%(n)s of %(total)s"
@@ -2037,8 +2033,8 @@ msgstr "Har bir rol."
 msgid "Hover a poster to stop the wall and tilt it toward the light."
 msgstr "Lentani to'xtatish va afishani yorug'likka burish uchun ustiga olib boring."
 
-msgid "The top twelve,"
-msgstr "Eng yaxshi o'n ikkitasi,"
+msgid "The top ten,"
+msgstr "Eng yaxshi o'ntasi,"
 
 msgid "by IMDb rating."
 msgstr "IMDb reytingi bo'yicha."

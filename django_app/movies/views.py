@@ -806,13 +806,13 @@ def _box_office(budget, revenue):
     }
 
 
-# How many matches the header search (Ctrl+K) lists, films first then shows.
+# How many matches the header search dropdown lists, films first then shows.
 SUGGEST_MOVIES = 6
 SUGGEST_SERIES = 3
 
 
 def search_suggest(request):
-    """JSON for the header search palette: titles matching ?q=, best rated first.
+    """JSON for the header search dropdown: titles matching ?q=, best rated first.
 
     Matches the reader's language the same way the list pages' search does
     (filter_by_title / filter_by_series_name). Under two characters returns

@@ -154,7 +154,7 @@ def build_home_shelves():
     top_rated = list(
         localize_movies(Movie.objects.using("warehouse"))
         .annotate(imdb_rating=Max("movierating__rating", filter=Q(movierating__source="imdb")))
-        .order_by(F("imdb_rating").desc(nulls_last=True), "movie_id")[:12]
+        .order_by(F("imdb_rating").desc(nulls_last=True), "movie_id")[:10]
     )
     newest = list(
         localize_movies(Movie.objects.using("warehouse"))
@@ -181,7 +181,7 @@ def build_home_shelves():
     }
 
 
-# How many films the home page's "Now showing" reel cycles through.
+# How many films the home page's "Explore" reel cycles through.
 FEATURED_LIMIT = 6
 
 

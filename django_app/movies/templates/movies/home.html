@@ -13,7 +13,7 @@
 {% block content %}
 <h1 class="visually-hidden">{% translate "Theoria — Welcome to the world of movies" %}</h1>
 
-{% comment %} The "Now showing" reel: the highest-rated films that have a
+{% comment %} The "Explore" reel: the highest-rated films that have a
    backdrop, full-bleed under the floating header. cinema.js cross-fades the
    backdrops, advances the reel every few seconds and samples each backdrop's
    colour into the page's ambient light. With JS off the first film simply
@@ -21,7 +21,7 @@
    home.css). Images carry crossorigin so cinema.js may read their pixels —
    image.tmdb.org answers with Access-Control-Allow-Origin: *. {% endcomment %}
 {% if featured %}
-<section class="reel" data-reel aria-roledescription="carousel" aria-label="{% translate "Now showing" %}">
+<section class="reel" data-reel aria-roledescription="carousel" aria-label="{% translate "Explore" %}">
     <div class="reel__stage" aria-hidden="true">
         {% for film in featured %}
         <img class="reel__image{% if forloop.first %} is-on{% endif %}" data-reel-image
@@ -35,7 +35,7 @@
         <div class="reel__slide" data-reel-slide{% if not forloop.first %} hidden{% endif %}
              role="group" aria-roledescription="slide"
              aria-label="{% blocktranslate trimmed with n=forloop.counter total=featured|length %}{{ n }} of {{ total }}{% endblocktranslate %}">
-            <p class="eyebrow">{% translate "Now showing" %} · {% translate "Highest rated" %}</p>
+            <p class="eyebrow">{% translate "Explore" %} · {% translate "Highest rated" %}</p>
             <h2 class="reel__title" data-reel-title>{{ film.display_title }}</h2>
             {% if film.display_tagline %}
             <p class="reel__tagline">{{ film.display_tagline }}</p>
@@ -135,7 +135,7 @@
     <header class="home-head reveal">
         <div>
             <p class="eyebrow">{% translate "Highest rated" %}</p>
-            <h2 class="home-title" id="h-rated">{% translate "The top twelve," %} <em>{% translate "by IMDb rating." %}</em></h2>
+            <h2 class="home-title" id="h-rated">{% translate "The top ten," %} <em>{% translate "by IMDb rating." %}</em></h2>
         </div>
         <div class="rail-controls" data-rail-controls="rated">
             <button type="button" class="round-btn" data-rail-prev aria-label="{% translate "Scroll back" %}">
@@ -168,6 +168,44 @@
     {% else %}
     <p class="empty">{% translate "No movies loaded yet. Run the pipeline to fill the catalog." %}</p>
     {% endif %}
+</section>
+
+<section class="home-section" aria-labelledby="h-new">
+    <header class="home-head reveal">
+        <div>
+            <p class="eyebrow">{% translate "by release date" %}</p>
+            <h2 class="home-title" id="h-new">{% translate "See what's new" %}</h2>
+        </div>
+    </header>
+    <div class="poster-grid">
+        {% for movie in newest %}
+        {% include "movies/_movie_card.html" with movie=movie only %}
+        {% empty %}
+        <p class="empty">{% translate "No movies loaded yet. Run the pipeline to fill the catalog." %}</p>
+        {% endfor %}
+    </div>
+</section>
+
+{% comment %} TV gets its own strip rather than folding into "See what's
+   new" (Task 90) — a heading a reader scans expecting one comparable kind
+   of card; mixing movies and shows under it would need a per-card kind cue
+   just to avoid confusion. Ordered by *last* air date, not first — see
+   _series_year_span()'s caller in views.py for why that's the right "new"
+   for a show. {% endcomment %}
+<section class="home-section" aria-labelledby="h-aired">
+    <header class="home-head reveal">
+        <div>
+            <p class="eyebrow">{% translate "by last air date" %}</p>
+            <h2 class="home-title" id="h-aired">{% translate "Recently aired" %}</h2>
+        </div>
+    </header>
+    <div class="poster-grid">
+        {% for series in recently_aired %}
+        {% include "movies/_series_card.html" with series=series only %}
+        {% empty %}
+        <p class="empty">{% translate "No shows loaded yet. Run the pipeline to fill the catalog." %}</p>
+        {% endfor %}
+    </div>
 </section>
 
 {% comment %} Films released and their average IMDb rating per decade. The
@@ -209,42 +247,4 @@
     </div>
 </section>
 {% endif %}
-
-<section class="home-section" aria-labelledby="h-new">
-    <header class="home-head reveal">
-        <div>
-            <p class="eyebrow">{% translate "by release date" %}</p>
-            <h2 class="home-title" id="h-new">{% translate "See what's new" %}</h2>
-        </div>
-    </header>
-    <div class="poster-grid">
-        {% for movie in newest %}
-        {% include "movies/_movie_card.html" with movie=movie only %}
-        {% empty %}
-        <p class="empty">{% translate "No movies loaded yet. Run the pipeline to fill the catalog." %}</p>
-        {% endfor %}
-    </div>
-</section>
-
-{% comment %} TV gets its own strip rather than folding into "See what's
-   new" (Task 90) — a heading a reader scans expecting one comparable kind
-   of card; mixing movies and shows under it would need a per-card kind cue
-   just to avoid confusion. Ordered by *last* air date, not first — see
-   _series_year_span()'s caller in views.py for why that's the right "new"
-   for a show. {% endcomment %}
-<section class="home-section" aria-labelledby="h-aired">
-    <header class="home-head reveal">
-        <div>
-            <p class="eyebrow">{% translate "by last air date" %}</p>
-            <h2 class="home-title" id="h-aired">{% translate "Recently aired" %}</h2>
-        </div>
-    </header>
-    <div class="poster-grid">
-        {% for series in recently_aired %}
-        {% include "movies/_series_card.html" with series=series only %}
-        {% empty %}
-        <p class="empty">{% translate "No shows loaded yet. Run the pipeline to fill the catalog." %}</p>
-        {% endfor %}
-    </div>
-</section>
 {% endblock %}

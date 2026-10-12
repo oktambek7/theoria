@@ -199,13 +199,35 @@
                 {% endif %}
             </div>
             {% endwith %}
-            {% comment %} Opens the search palette (cinema.js). Without JS it is a
-               plain link to the Movies index, whose own search box does the job. {% endcomment %}
-            <a class="search-btn" href="{% url 'movies:movie_list' %}" data-search-open>
+            {% comment %} Header search. Wide screens show the field itself in the
+               bar; where the bar is too tight for it (up to 1240px) a magnifier
+               button stands in and opens the same field as a row under the bar
+               (cinema.js, has-js only). Results list in a dropdown beneath the
+               field as the reader types. Without JS it is a plain GET form to
+               the Browse page, whose own search box does the job. The visible
+               strings live here as data- attributes so cinema.js never owns a
+               phrase. {% endcomment %}
+            <button type="button" class="search-btn" data-search-toggle
+                    aria-expanded="false" aria-controls="header-search"
+                    aria-label="{% translate "Search" %}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <span class="search-btn__label">{% translate "Search" %}</span>
-                <kbd class="search-btn__kbd">Ctrl K</kbd>
-            </a>
+            </button>
+            <form class="header-search" id="header-search" role="search" method="get"
+                  action="{% url 'movies:browse' %}" data-header-search
+                  data-endpoint="{% url 'movies:search_suggest' %}"
+                  data-label-movie="{% translate "Movie" %}" data-label-series="{% translate "TV show" %}"
+                  data-empty="{% translate "No title matches that search. Try another title." %}"
+                  data-hint="{% translate "Type at least two letters of a title." %}">
+                <label class="header-search__field">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input type="search" name="q" id="header-search-input" autocomplete="off" spellcheck="false"
+                           placeholder="{% translate "Search" %}"
+                           aria-label="{% translate "Search movies and TV shows" %}"
+                           role="combobox" aria-expanded="false" aria-autocomplete="list"
+                           aria-controls="header-search-list">
+                </label>
+                <div class="header-search__list" id="header-search-list" role="listbox" hidden></div>
+            </form>
             {% comment %} Language switcher. A sibling of .nav-links, not inside it:
                on a phone it stays in the header row beside Sign in instead of
                folding away behind the hamburger. A real POST form to Django's
@@ -296,26 +318,6 @@
         </div>
     </dialog>
     {% endif %}
-
-    {% comment %} The search palette (Ctrl+K or the header button). Results come
-       from movies:search_suggest as the reader types; the visible strings live
-       here as data- attributes so cinema.js never owns a phrase. {% endcomment %}
-    <div class="palette" id="search-palette" hidden data-search-palette
-         data-endpoint="{% url 'movies:search_suggest' %}"
-         data-label-movie="{% translate "Movie" %}" data-label-series="{% translate "TV show" %}"
-         data-empty="{% translate "No title matches that search. Try another title." %}"
-         data-hint="{% translate "Type at least two letters of a title." %}">
-        <div class="palette__box" role="dialog" aria-modal="true" aria-label="{% translate "Search" %}">
-            <div class="palette__field">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <input id="search-palette-input" type="text" autocomplete="off" spellcheck="false"
-                       placeholder="{% translate "Search movies and TV shows" %}" aria-label="{% translate "Search movies and TV shows" %}"
-                       role="combobox" aria-expanded="true" aria-controls="search-palette-list">
-                <kbd>Esc</kbd>
-            </div>
-            <div class="palette__list" id="search-palette-list" role="listbox"></div>
-        </div>
-    </div>
 
     <div class="ai-assistant" data-ai-assistant data-ai-chat-endpoint="{% url 'assistant:chat' %}"
          data-ai-feedback-endpoint="{% url 'assistant:feedback' %}"
