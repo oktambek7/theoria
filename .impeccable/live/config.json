@@ -1,0 +1,6 @@
+{
+  "files": ["django_app/templates/base.html"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}
