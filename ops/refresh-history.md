@@ -100,3 +100,4 @@ Format: `<UTC timestamp>  <status>  <run label>  (<trigger>)`
 2026-11-14T10:13:50Z  failure  run 33  (schedule)
 2026-11-15T10:43:47Z  failure  run 34  (schedule)
 2026-11-16T11:01:50Z  failure  run 35  (schedule)
+2026-11-16T12:54:06Z  failure  discovery run 5  (schedule)
